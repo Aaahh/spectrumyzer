@@ -9,7 +9,7 @@ from configparser import ConfigParser
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, Gdk, GLib
+from gi.repository import Gtk, Gdk, GLib, GObject
 
 
 class AttributeDict(dict):
@@ -72,6 +72,7 @@ class ConfigManager(dict):
 			self[key + "_offset"] = self.parser.getint("Offset", key)
 
 		# color
+		# TODO: Color gradient (with proper luministy lerp)
 		hex_ = self.parser.get("Bars", "rgba").lstrip("#")
 		nums = [int(hex_[i:i + 2], 16) / 255.0 for i in range(0, 7, 2)]
 		self["rgba"] = Gdk.RGBA(*nums)
@@ -94,17 +95,15 @@ class WindowState:
 
 		screen = self.window.get_screen()
 		screen_size = [screen.get_width(), screen.get_height()]
+		self.window.set_accept_focus(False)
+		#Gtk.gtk_widget_set_sensitive(self.window, False)
+
 
 		def use_workarea():
-			try:
-				# Gtk >= 3.22
-				display = screen.get_display()
-				monitor = display.get_primary_monitor() or display.get_monitor(0)
-				workarea = monitor.get_workarea()
-			except AttributeError:
-				workarea = screen.get_monitor_workarea(0)
-			self.window.set_default_size(workarea.width, workarea.height)
-			self.window.move(workarea.x, workarea.y)
+			# Gtk >= 3.22
+			display = screen.get_display()
+			monitor = display.get_primary_monitor() or display.get_monitor(0)
+			workarea = monitor.get_workarea()
 
 		self.actions = dict(
 			normal = lambda: None,
@@ -229,12 +228,31 @@ class MainApp:
 		self.audio_sample = [0] * (2 * self.bars.number)
 
 		# signals
-		GLib.timeout_add(33, self.update)
 		self.window.connect("delete-event", self.close)
 		self.window.connect("check-resize", self.on_window_resize)
 
 		# show window
 		self.window.show_all()
+
+		#def set_mask(win):
+			#b=gtk.gdk.bitmap_create_from_data(win.window,8,win.window.get_size())
+			#ssize=self.window.get_size()
+			#print(size)
+			# bitmap=Gdk.Pixmap(win.window,size[0],size[1],1)
+			# bitmap=Gdx.Pixmap(self.window,size[0],size[1],1)
+			#bitmap=Gdk.bitmap_create_from_data(win.window,8,win.window.get_size())
+
+			#cr = bitmap.cairo_create()
+			#cr.set_operator(cairo.OPERATOR_SOURCE)
+			#cr.set_source_rgba(0.0,0.0,0.0,0.0)
+			#cr.rectangle((0,0)+size)
+			#cr.fill()  
+		
+			#self.window.input_shape_combine_mask(cairo_region_create(),0,0)
+			#self.window.input_shape_combine_region(self.window, cairo_region_create(), 0,0)
+		#	print('ready')
+		GLib.timeout_add(33, self.update)
+
 
 	def is_silence(self, value):
 		"""Check if volume level critically low during last iterations"""
@@ -344,7 +362,6 @@ class MainApp:
 
 if __name__ == "__main__":
 	signal.signal(signal.SIGINT, signal.SIG_DFL)  # make ^C work
-
 	MainApp()
 	Gtk.main()
 	exit()
